@@ -6,8 +6,8 @@ from token_research.utils import storage
 
 class Token(Contract):
 
-    def __init__(self, vm):
-        super().__init__(vm)
+    def __init__(self, evm):
+        super().__init__(evm.vm)
         self.deploy('Token')
 
     def balance_of(self, address):

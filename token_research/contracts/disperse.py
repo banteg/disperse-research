@@ -5,13 +5,13 @@ from token_research.utils import Contract, accounts
 from token_research.utils import storage
 from token_research.utils.recipients import generate_recipients
 
-from token_research.contracts import Token
+from token_research.contracts.token import Token
 
 
 class Disperse(Contract):
 
-    def __init__(self, vm):
-        super().__init__(vm)
+    def __init__(self, evm):
+        super().__init__(evm.vm)
         self.deploy('Disperse')
 
     def estimate_token(self, have_balances: bool, count: int, simple: bool):

@@ -41,22 +41,23 @@ class Contract:
         return self.address
 
     def call(self, function, params):
+        # print(f'call {function} {params}')
         data = call_data(function, *params)
         addr, priv = accounts.pair(1)
-        nonce = self.vm.state.account_db.get_nonce(addr)
         tx = self.vm.create_unsigned_transaction(
-            to=self.address, data=data, nonce=nonce, gas_price=1, gas=8000000, value=0
+            to=self.address, data=data, nonce=0, gas_price=1, gas=8000000, value=0
         ).as_signed_transaction(priv)
         result = self.vm.state.costless_execute_transaction(tx)
         return result
 
     def transact(self, function, params, value=0, n=1):
+        # print(f'transact {function} {params} value={value} n={n}')
         data = call_data(function, *params)
         addr, priv = accounts.pair(n)
         nonce = self.vm.state.account_db.get_nonce(addr)
         tx = self.vm.create_unsigned_transaction(
             to=self.address, data=data, nonce=nonce, gas_price=1, gas=8000000, value=value
-        )
+        ).as_signed_transaction(priv)
         root, computation = self.vm.state.apply_transaction(tx)
         computation.raise_if_error()
         gas_used = tx.gas - computation._gas_meter.gas_remaining
