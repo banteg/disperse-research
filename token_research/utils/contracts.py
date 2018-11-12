@@ -47,8 +47,8 @@ class Contract:
         tx = self.vm.create_unsigned_transaction(
             to=self.address, data=data, nonce=nonce, gas_price=1, gas=8000000, value=0
         ).as_signed_transaction(priv)
-        output = self.vm.state.costless_execute_transaction(tx)
-        return output
+        result = self.vm.state.costless_execute_transaction(tx)
+        return result
 
     def transact(self, function, params, value, keypair_n):
         data = call_data(function, *params)
