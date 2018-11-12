@@ -12,3 +12,6 @@ trinity = {git = "https://github.com/ethereum/py-evm.git"}
 
 [requires]
 python_version = "3.7"
+
+[scripts]
+benchmark = "python -m token_research.benchmark"
