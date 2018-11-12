@@ -26,3 +26,11 @@ class Token(Contract):
     def approve(self, spender, value, n=1):
         result = self.transact('approve(address,uint256)', [spender, value], n=n)
         return result
+
+    def transfer(self, recipient, value, n=1):
+        result = self.transact('transfer(address,uint256)', [recipient, value], n=n)
+        return result
+
+    def transferFrom(self, src, dst, value, n):
+        result = self.transact('transferFrom(address,address,uint256)', [src, dst, value], n=n)
+        return result
