@@ -1,7 +1,9 @@
 import json
+import re
 
 from eth.utils.address import generate_contract_address
-from eth_utils import to_bytes
+from eth_abi import encode_abi
+from eth_utils import to_bytes, keccak
 
 from token_research.utils import accounts
 
@@ -22,7 +24,40 @@ def deploy_contract(vm, bytecode: bytes):
     return contract
 
 
-def deploy_artifact(vm, name: str):
-    artifact = json.load(open(f'artifacts/truffle/{name}.json'))
-    bytecode = to_bytes(hexstr=artifact['bytecode'])
-    return deploy_contract(vm, bytecode)
+def call_data(function: str, *params):
+    name, types = re.search(r'(.*)\((.*)\)', function).groups()
+    return keccak(function.encode())[:4] + encode_abi(types.split(','), params)
+
+
+class Contract:
+
+    def __init__(self, vm):
+        self.vm = vm
+
+    def deploy(self, name: str):
+        artifact = json.load(open(f'artifacts/truffle/{name}.json'))
+        bytecode = to_bytes(hexstr=artifact['bytecode'])
+        self.address = deploy_contract(self.vm, bytecode)
+        return self.address
+
+    def call(self, function, *params):
+        data = call_data(function, *params)
+        addr, priv = accounts.pair(1)
+        nonce = self.vm.state.account_db.get_nonce(addr)
+        tx = self.vm.create_unsigned_transaction(
+            to=self.address, data=data, nonce=nonce, gas_price=1, gas=8000000, value=0
+        ).as_signed_transaction(priv)
+        output = self.vm.state.costless_execute_transaction(tx)
+        return output
+
+    def transact(self, function, params, value, keypair_n):
+        data = call_data(function, *params)
+        addr, priv = accounts.pair(keypair_n)
+        nonce = self.vm.state.account_db.get_nonce(addr)
+        tx = self.vm.create_unsigned_transaction(
+            to=self.address, data=data, nonce=nonce, gas_price=1, gas=8000000, value=value
+        )
+        root, computation = self.vm.state.apply_transaction(tx)
+        computation.raise_if_error()
+        gas_used = tx.gas - computation._gas_meter.gas_remaining
+        return gas_used
