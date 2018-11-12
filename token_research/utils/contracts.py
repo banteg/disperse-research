@@ -40,7 +40,7 @@ class Contract:
         self.address = deploy_contract(self.vm, bytecode)
         return self.address
 
-    def call(self, function, *params):
+    def call(self, function, params):
         data = call_data(function, *params)
         addr, priv = accounts.pair(1)
         nonce = self.vm.state.account_db.get_nonce(addr)
@@ -50,9 +50,9 @@ class Contract:
         result = self.vm.state.costless_execute_transaction(tx)
         return result
 
-    def transact(self, function, params, value, keypair_n):
+    def transact(self, function, params, value=0, n=1):
         data = call_data(function, *params)
-        addr, priv = accounts.pair(keypair_n)
+        addr, priv = accounts.pair(n)
         nonce = self.vm.state.account_db.get_nonce(addr)
         tx = self.vm.create_unsigned_transaction(
             to=self.address, data=data, nonce=nonce, gas_price=1, gas=8000000, value=value
