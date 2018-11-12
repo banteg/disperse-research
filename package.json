@@ -1,0 +1,10 @@
+{
+  "name": "token-research",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "buidler": "^0.1.5",
+    "openzeppelin-solidity": "^2.0.0"
+  }
+}
