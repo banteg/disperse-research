@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "e59df6b186993c928bf87e0175b75cc79fa9cb83db2696175502b635af6b41a9"
+            "sha256": "6d35b3094b645efa8b1de11e6307f9fec169b1bc84bb5f58425a2997de5ffa6c"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -70,6 +70,10 @@
                 "sha256:929f0a7ea7f61c178bd951bdae93920515d3fbdbafc8e6caf82d752b9b3b31c9"
             ],
             "version": "==0.9.0"
+        },
+        "trinity": {
+            "git": "https://github.com/ethereum/py-evm.git",
+            "ref": "7d0f1888e5b43189bc82852e16dc38f8e58ea2b0"
         }
     },
     "develop": {}
