@@ -41,7 +41,6 @@ class Contract:
         return self.address
 
     def call(self, function, params):
-        # print(f'call {function} {params}')
         data = call_data(function, *params)
         addr, priv = accounts.pair(1)
         tx = self.vm.create_unsigned_transaction(
@@ -51,7 +50,6 @@ class Contract:
         return result
 
     def transact(self, function, params, value=0, n=1):
-        # print(f'transact {function} {params} value={value} n={n}')
         data = call_data(function, *params)
         addr, priv = accounts.pair(n)
         nonce = self.vm.state.account_db.get_nonce(addr)

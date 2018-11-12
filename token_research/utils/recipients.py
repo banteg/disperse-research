@@ -6,7 +6,8 @@ def generate_recipients(count):
     recipients = []
     while len(recipients) < count:
         address = backend.PrivateKey(os.urandom(32)).public_key.to_canonical_address()
-        # data field: zero = 4 gas, non-zero = 68 gas, aim for the worst case
+        # aim for the worst case
+        # zero in data costs 4 gas, non-zero byte is 68 gas
         if address.count(b'\x00') == 0:
             recipients.append(address)
     return recipients

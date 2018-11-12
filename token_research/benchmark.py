@@ -17,9 +17,11 @@ def main():
     for vm_class in vms:
         evm = EVM(vm_class)
         print(evm.vm.fork)
-        # load up the first 10 accounts with 100 ether each
+
+        # load up the first 10 accounts with ether
         for n in range(1, 11):
             evm.set_balance(accounts.addr(n), to_wei(1, 'tether'))
+
         benchmark_token(evm)
         benchmark_disperse_ether(evm)
         benchmark_disperse_token(evm)

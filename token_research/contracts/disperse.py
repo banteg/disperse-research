@@ -1,11 +1,9 @@
 from eth.exceptions import VMError
-from eth_utils import from_wei, to_int, to_wei
-
-from token_research.utils import Contract, accounts
-from token_research.utils import storage
-from token_research.utils.recipients import generate_recipients
+from eth_utils import to_wei
 
 from token_research.contracts.token import Token
+from token_research.utils import Contract
+from token_research.utils.recipients import generate_recipients
 
 
 class Disperse(Contract):

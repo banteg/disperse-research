@@ -14,6 +14,5 @@ def addr(n: int):
     return priv(n).public_key.to_canonical_address()
 
 
-
 def pair(n: int):
     return addr(n), priv(n)

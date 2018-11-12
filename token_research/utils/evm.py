@@ -2,7 +2,6 @@ from eth import constants
 from eth.db.atomic import AtomicDB
 from eth.db.chain import ChainDB
 from eth.rlp.headers import BlockHeader
-from eth.vm.base import VM
 
 
 class EVM:
