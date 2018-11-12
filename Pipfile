@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 eth-abi = "*"
 eth-utils = "*"
-trinity = "==0.1.0a16"
+trinity = {git = "https://github.com/ethereum/py-evm.git"}
 
 [dev-packages]
 
