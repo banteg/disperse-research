@@ -4,3 +4,4 @@ artifacts
 .idea
 .ipynb_checkpoints
 node_modules
+old
