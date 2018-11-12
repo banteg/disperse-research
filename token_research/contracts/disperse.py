@@ -42,6 +42,9 @@ class Disperse(Contract):
                 self.vm.state.account_db.set_balance(address, value)
             self.vm.state.account_db.persist()
 
+            for address in recipients:
+                assert self.vm.state.account_db.get_balance(address) == value
+
         try:
             return self.disperse_ether(recipients, values)
         except VMError:
