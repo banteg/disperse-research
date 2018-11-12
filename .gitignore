@@ -3,3 +3,4 @@ cache
 .ipynb_checkpoints
 node_modules
 old
+paper/.texpadtmp
