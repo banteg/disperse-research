@@ -11,15 +11,16 @@ from token_research.contracts.token import Token
 class Disperse(Contract):
 
     def __init__(self, evm):
+        self.evm = evm
         super().__init__(evm.vm)
         self.deploy('Disperse')
 
-    def estimate_token(self, have_balances: bool, count: int, simple: bool):
+    def estimate_token(self, have_balances: bool, simple: bool, count: int):
         value = to_wei(100, 'ether')
         recipients = generate_recipients(count)
         values = [value for _ in recipients]
 
-        token = Token(self.vm)
+        token = Token(self.evm)
         token.approve(self.address, 2 ** 256 - 1)
 
         if have_balances:
