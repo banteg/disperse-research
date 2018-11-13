@@ -1,3 +1,4 @@
+import logging
 from functools import partial
 
 from eth.vm.forks.byzantium import ByzantiumVM
@@ -13,6 +14,7 @@ from token_research.utils.recipients import generate_recipients
 
 
 def main():
+    # logging.basicConfig(level=logging.TRACE, filename='evm-trace.log', filemode='wt')
     vms = [ByzantiumVM, ConstantinopleVM]
     for vm_class in vms:
         evm = EVM(vm_class)
