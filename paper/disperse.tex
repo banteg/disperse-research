@@ -1,25 +1,31 @@
 \documentclass[12pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[english]{babel}
-\usepackage{hyperref}
+\usepackage[
+	hidelinks,
+	colorlinks,
+	linkcolor=blue,
+	citecolor=blue,
+	urlcolor=blue,
+]{hyperref}
 \usepackage{amsmath}
 \usepackage{xcolor}
 \usepackage[ruled]{algorithm2e}
 \usepackage{pgfplots}
 \usepgfplotslibrary{groupplots}
-\usepackage{graphicx}
-\pgfplotsset{compat=1.14}
-\usepackage{listings}
+\pgfplotsset{compat=newest}
 
 \begin{document}
 
-\title{Disperse Protocol}
-\author{Artem K\\ \small{banteg@protonmail.com} \\
-\small{\textsc{working draft}}}  % remove when finished
+\title{
+	Disperse Protocol\\
+	\Large{Optimizing the gas costs of ERC-20 token transfers}
+}
+\author{Artem K\\ \small{banteg@protonmail.com}}
 
 \maketitle
 \abstract{
-This paper dissects the gas costs incurred when transferring tokens on EVM-based networks and discusses the possible optimization strategies.
+This paper dissects the gas costs incurred when transferring tokens on EVM\footnote{Ethereum Virtual Machine}-based networks and discusses the possible optimization strategies.
 It presents a concise smart contract for batch sending both native and ERC-20 tokens. 
 It argues about the design decisions that allow to fit 2--3x more transfers in a single block.
 The paper also discusses how the token developers optimize for gas usage and explains what the upcoming Constantinople hard fork means for token transfers and this algorithm.
@@ -72,6 +78,7 @@ The event signature is computed like this:
 \begin{center}
 \begin{tabular}{l r l}
 	Name & Value & Description \\ \hline
+	$G_{transaction}$ & 21000 \\
 	$G_{sload}$ & 200 \\
 	$G_{sstore}$ & 5000 & if value was non-zero \\
 	$G_{sstore}$ & 20000 & if value was zero \\
@@ -80,12 +87,11 @@ The event signature is computed like this:
 	$G_{logdata}$ & 8 & per byte \\
 	$G_{txdata}$ & 4 & per zero byte \\
 	$G_{txdata}$ & 68 & per non-zero byte \\
-	$G_{transaction}$ & 21000
 \end{tabular}
 \end{center}
 \end{table}
-
-Here is a breakdown of the most expensive operations during a token transfer. For gas costs see Table \ref{gas-costs}.
+%
+Here is a breakdown of the most expensive operations during a token transfer. For gas costs see Table~\ref{gas-costs}.
 
 \begin{enumerate}
 	\item Invoke a transaction: $G_{transaction}$
@@ -100,21 +106,18 @@ There is more logic involved, but the rest is cheap enough to ignore in this est
 We assume that the address contains no zero bytes which is the most common case.
 
 Balances are stored in the lowest denomination as unsigned 256-bit integers.
-Most tokens implement a view-only function called \textbf{decimals} which returns the number of decimal places in the base unit.
-This number hints the clients how to present the balance to the user, but it has no effect on the underlying data.
-Most tokens go for 18 decimals taking after the native currency (1 ether = $10^{18}$ wei).
-
-The median transfer value across the recent transfers on Ethereum mainnet is $10^{20}$ wei (100 tokens at 18 decimals), we'll use that value in our tests.
+%Most tokens implement a view-only function called \textbf{decimals} which returns the number of decimal places in the base unit.
+%This number hints the clients how to present the balance to the user, but it has no effect on the underlying data.
+Most tokens go for 18 decimal points taking after the native currency (1 ether = $10^{18}$ wei).
+The median transfer value across the recent transfers on Ethereum mainnet is $10^{20}$ wei (100 tokens), we'll use that value in our tests.
 
 With these assumptions the data passed along with the transaction has 31 non-zero and 37 zero bytes which results in 2256 gas cost.
 
 It's safe to assume that the sender has had a non-zero balance, so the only variable left is whether the recipient's balance was zero. This leaves us with a ballpark estimation of 35,412--50,412 gas:
-\begin{center}
-	\begin{tabular}{l l}
-		$21000 + 2256 + 400 + 10000 + 1756 = 35412$ & (best case) \\
-		$21000 + 2256 + 400 + 25000 + 1756 = 50412$ & (worst case) \\
-	\end{tabular}
-\end{center}
+\begin{gather}
+	G_{transaction}^{21000} + G_{data}^{2256} + G_{sload}^{400} + G_{sstore}^{10000} + G_{log}^{1756} = 35412 \\
+	G_{transaction}^{21000} + G_{data}^{2256} + G_{sload}^{400} + G_{sstore}^{25000} + G_{log}^{1756} = 50412
+\end{gather}
 %
 This is not far from truth, the most popular implementation of ERC-20 standard by  OpenZeppelin\cite{openzeppelin} consumes 36,947--51,947 gas.
 It is possible to fit 154--216 transfers in a block with the current block gas limit of  8,000,000.
@@ -136,13 +139,14 @@ Instead of calling \textbf{transfer} function which doesn't notify the recipient
 The gas costs for this function are in range of 44,400--59,400, or up to 134--180 transfers per block. The main addition is 5000 gas for updating allowance.
 
 \section{Batch transfers}
-\subsection{Naïve approach}
+\subsection{Simple approach}
 
 A simple approach would be to create a contract that receives a token address, a list of recipients and a list of values and calls \textbf{transferFrom} while iterating over (recipients, values) pairwise. This would allow to to pay $G_{transaction}$ just once which makes a significant difference when approaching the block gas limit.
 
 \begin{algorithm}[h]
 \SetKwInOut{Input}{input}
-\caption{Penalty function}
+\label{simple}
+\caption{Disperse ERC-20 token using transferFrom}
 \Input{token, recipients, values}
 \BlankLine
 \For{$i \in [0 \dots \text{recipients.length})$}{
@@ -162,6 +166,7 @@ This is already a 1.34--1.56x improvement over direct transfers.
 A contract can use just one \textbf{transferFrom} to itself and then distribute the tokens from its own address using \textbf{transfer}. We can ensure atomicity by using a \textbf{require} statement that reverts the transaction if any of the transfers fails.
 
 \begin{algorithm}[h]
+	\label{optimized}
 	\caption{Disperse ERC-20 tokens using transfer}
 	\SetKwInOut{Input}{input}
 	\BlankLine
@@ -185,7 +190,7 @@ This is a 1.58--2.07x improvement over regular transfers and 1.18-1.33x improvem
 \subsection{Visual comparison}
 
 The chart below presents a comparison of two methods with \textit{n} \textbf{transfer} transactions.
-The lines show the bounds of the worst (all recipients had zero token balances) and the best cases (everyone had a non-zero balance).
+The area shows the bounds of the worst (all recipients had zero token balances) and the best cases (everyone had a non-zero balance).
 
 \begin{figure}[h]
 \begin{tikzpicture}
@@ -200,7 +205,7 @@ The lines show the bounds of the worst (all recipients had zero token balances) 
 			group size=2 by 1
 		}
 	]
-	\nextgroupplot[ylabel=gas cost, title=naive approach]
+	\nextgroupplot[ylabel=gas cost, title=simple approach]
     \addplot[patch, black, faceted color=black, fill opacity=.1]
     coordinates {
         (0, 0)
@@ -232,7 +237,7 @@ The lines show the bounds of the worst (all recipients had zero token balances) 
     \legend{transfer, disperse}
 	\end{groupplot}
 \end{tikzpicture}
-\caption{Comparison of naive and optimized approach}
+\caption{Gas profile of ERC-20 token transfers}
 \end{figure}
 
 
@@ -244,8 +249,8 @@ However, there are at least 130 live tokens that don't follow this rule and retu
 The problem wasn't discovered for a long time because these tokens behaved as expected\cite{cremer}.
 By pure coincidence the memory slot where the return value was expected contained the function selector which has always evaluated to \textit{true}.
 
-Byzantium hard fork in November 2017 introduced a new RETURNDATASIZE opcode that allows for reading dynamically-sized data.
-Contracts compiled with $solc \geq 0.4.22$ are checking the size of the returned data instead or blindly reading it from memory.
+Byzantium hard fork in November 2017 introduced a new opcode (RETURNDATASIZE) that enables reading of dynamically-sized data.
+Contracts compiled with solc\footnote{Solidity compiler} $\geq 0.4.22$ are checking the size of the returned data instead or blindly reading a chunk of memory.
 Such contracts won't be able to interact with these tokens.
 Some of the more notable tokens affected are BNB and OMG.
 
@@ -256,7 +261,7 @@ The problem is fixable with inline assembly that handles both cases, but this fi
 
 \subsection{Unlimited Allowance}
 Allowance is oftentimes used as a binary switch.
-A common pattern is to \textbf{approve} $\text{uint256}_{max}$ to grant unlimited allowance:
+A common pattern is to \textbf{approve} $\text{uint256}_{max}$ to indicate unlimited allowance:
 
 \begin{center}	
 \begin{tabular}{r l}
@@ -267,34 +272,40 @@ A common pattern is to \textbf{approve} $\text{uint256}_{max}$ to grant unlimite
 \end{center}
 
 There are at least two live ERC-20 tokens that utilize this pattern to optimize for gas usage.
-0x protocol's own ZRX token interprets $2^{256}-1$ as a magic value meaning ``unlimited allowance" and skips updating the allowance on transfers in this case\cite{zrx-unlimited}. This allows to save 5000 gas on SSTORE and matches the cost of \textbf{transfer} and \textbf{transferFrom}.
+0x protocol's own ZRX token interprets $2^{256}-1$ as a magic value meaning ``unlimited allowance" and skips updating the allowance altogether in this case\cite{zrx-unlimited}. This saves 5000 gas by skipping one SSTORE and equates the cost of \textbf{transfer} and \textbf{transferFrom}.
 
-Another example is Wrapped Ether (WETH), which is used to swap the native token to its ERC-20 form and back.
+Another example is Wrapped Ether (WETH), which primary function is to trustlessly swap the native token to its ERC-20 form or back.
 
 \subsection{Constantinople}
 
-Constantinople is a code name for Ethereum hard fork which is set to go live in the beginning of 2019.
+Constantinople is a code name for Ethereum hard fork which is set to go live mid-January 2019.
 It is already live on Ropsten testnet at the time of publication.
 Among other improvements, the fork changes the gas metering rules for SSTORE,
 discussed in EIP-1283\cite{eip1283}.
 
-The new gas costs and refunds are based on the combination of three values: original, current and new.
-The logic became much more complex, but the gist is that the subsequent writes to the same storage slot during the transaction became much cheaper.
+The new gas costs and refunds for storage writing are based on the combination of three values: original, current and new.
+The logic became much more complex, but the gist is that the subsequent writes to the same storage slot in scope of a single transaction became much cheaper.
 
-Consider the transitions of the contract token balance during an example transaction sending 1 token each to three recipients. The upper number shows the gas cost and the lower number shows the refund for clearing storage.
-$$
-0 \xrightarrow{20000} 3 \xrightarrow{5000} 2 \xrightarrow{5000} 1 \xrightarrow[-15000]{5000} 0 = 20000 \text{ gas}
-$$
+This affects the proposed contract in a major way.
+Consider the transitions of the contract token balance during the execution of an example transaction transferring three tokens to three recipients.
+
+The number shows the balance value in storage. The upper number shows the gas cost of the SSTORE and the lower number shows the refund for clearing storage.
+\begin{equation}
+0 \xrightarrow{20000} 3 \xrightarrow{5000} 2 \xrightarrow{5000} 1 \xrightarrow[-15000]{5000} 0 = 20000 \text{ gas}	
+\end{equation}
+
 This is how it looks with EIP-1283 metering:
-$$
-0 \xrightarrow{20000} 3 \xrightarrow{200} 2 \xrightarrow{200} 1 \xrightarrow[-19800]{200} 0 = 800 \text{ gas}
-$$
+\begin{equation}
+0 \xrightarrow{20000} 3 \xrightarrow{200} 2 \xrightarrow{200} 1 \xrightarrow[-19800]{200} 0 = 800 \text{ gas}	
+\end{equation}
 
 In generalized form with $n$ recipients:
-$$G_{sset} + G_{sreset} \cdot n - R_{sclear} = 20000 + 5000 \cdot n - 15000$$
-$$G_{sset} + G_{snoop} \cdot n - R_{sresetclear} = 20000 + 200 \cdot n - 19800$$
+\begin{gather}
+G_{sset}^{20000} + n \cdot G_{sreset}^{5000} - R_{sclear}^{15000} = 5000 \cdot (n + 1) \\
+G_{sset}^{20000} + n \cdot G_{snoop}^{200} - R_{sresetclear}^{19800} = 200 \cdot (n + 1)
+\end{gather}
 
-The total cost of updating the token balance for the contract is down from $5000 \cdot (n + 1)$ to $200 \cdot (n + 1)$ which is a 25x improvement.
+The new metering rules result in a 25x improvement of the total cost of updating the contract token balance.
 
 Below is a comparison of how this change affects the performance of the proposed contract.
 
@@ -313,7 +324,7 @@ Below is a comparison of how this change affects the performance of the proposed
 			group size=2 by 1
 		}
 	]
-	\nextgroupplot[ylabel=gas cost, title=naive approach]
+	\nextgroupplot[ylabel=gas cost, title=simple approach]
 	\addplot[forget plot, patch, dashed, faceted color=black!50, fill opacity=0]
     coordinates {
         (0, 0)
@@ -358,46 +369,139 @@ Below is a comparison of how this change affects the performance of the proposed
     \legend{transfer, byzantium, constantinople}
 	\end{groupplot}
 \end{tikzpicture}
-\caption{Comparison of EIP-1283 effect on the algorithm}
+\caption{EIP-1283 effect on algorithms \ref{simple} and \ref{optimized}}
 \end{figure}
 
-The overall effect is improvement from 242--449 transfers to 284--616 for optimized approach, which is a 1.17--1.37x better result and 1.84--2.85x improvement over non-batched transfers.
+The overall effect is improvement from 242--449 transfers to 284--616 for optimized approach, which is a 1.17--1.37x better result and a 1.84--2.85x improvement over non-batched transfers.
 
 
 \section{Native Token}
 
-{\color{red} write a chapter about sending ether}
+Sending native token requires a slightly different approach. Any value sent along with the transaction immediately becomes available for the contract to use as its own balance. That's why it's important to keep track of how much was already sent to refund the excess value.
+
+One way to approach this would be to calculate the total, similar to Algorithm~\ref{optimized}, but a more efficient method is to always ensure that the final contract balance remains zero after transaction.
+
+\begin{algorithm}[h]
+	\label{native}
+	\caption{Disperse native token}
+	\SetKwInOut{Input}{input}
+	\BlankLine
+	\Input{recipients, values}
+	\For{$i \in [0 \dots recipients.length)$}{
+		recipients[i].transfer(values[i])
+	}
+	$balance \leftarrow address(this).balance$ \\
+	\If{$balance > 0$}{
+	    msg.sender.transfer(balance)
+	}
+\end{algorithm}
+
+The main gas costs involved are:
+\begin{enumerate}
+	\item Invoke a transaction: $G_{transaction}$
+	\item Cost of the attached data: $64 \cdot G_{txdata}$
+	\item Transfer (CALL): $G_{call} + G_{callvalue} + G_{newaccount} - G_{callstipend}$
+	\item Get account balance: $G_{balance}$
+\end{enumerate}
+
+\begin{table}[h]
+\caption{Ethereum gas schedule}
+\label{gas-costs-2}
+\begin{center}
+\begin{tabular}{l r l}
+	Name & Value & Description \\ \hline
+	$G_{transaction}$ & 21000 \\
+	$G_{call}$ & 700 \\
+	$G_{callvalue}$ & 9000 & if $value > 0$ \\
+	$G_{newaccount}$ & 25000 & if creates new account \\
+	$G_{balance}$ & 400 \\
+	$G_{txdata}$ & 4 & per zero byte \\
+	$G_{txdata}$ & 68 & per non-zero byte \\
+
+\end{tabular}
+\end{center}
+\end{table}
+
+The gas cost of each CALL\cite{subtleties} is in range of 7,400--32,400 gas, whereas a regular transfer costs a flat fee of 21,000 gas.
+%
+\begin{align*}
+700 + 9000 - 2300 &= 7400 & \text{best case} \\
+700 + 9000 - 2300 + 25000 &= 32400 & \text{worst case}
+\end{align*}
+
+The $G_{newaccount}$ penalty makes it impractical to create new accounts using this algorithm, limiting the number of transfers in a block to 230, as opposed to 380 regular transfer.
+This is a 1.65x worse result in terms of gas, but it's still one transaction instead of $n$.
+
+Calling existing accounts from a contract allows to fit 830 transfers in a block, which is a massive 2.18x improvement over regular transfers.
+The resulting cost per transfer is 9,629--34,701 gas.
+
+Constantinople hard fork has no effect on sending native tokens.
+
+\begin{figure}[h!]
+\centering{
+\begin{tikzpicture}
+	\begin{axis}[
+		xlabel=addresses,
+		xmax=830,
+		axis lines=left,
+		enlargelimits,
+		legend pos=south east,
+		ylabel=gas cost,
+		title=native token,
+	]
+    \addplot[black, faceted color=black, fill opacity=.1]
+    coordinates {
+        (0, 0)
+		(380, 7980000) % 21k
+    };
+    \addplot[forget plot, patch, red, faceted color=red, fill opacity=.1]
+    coordinates {
+        (0, 0)
+		(230, 7981378) %disperse ether, zero balances, 230 recipients, 7981378 gas, 34701 gas/transfer
+		(830, 7992706) %disperse ether, non-zero balances, 830 recipients, 7992706 gas, 9629 gas/transfer
+    };
+    % for legend only
+    \addplot[red] coordinates {(100,0)};
+    \legend{transfer, disperse}
+	\end{axis}
+\end{tikzpicture}
+}
+\caption{Gas profile of native token transfers}
+\end{figure}
+
 
 \section{Methodology}
 
-The gas usage is instrumented using Py-EVM\cite{pyevm}.
-The benchmark setup is built from low-level primitives which include only the virtual machines with different rules and an in-memory state database. The mining and blockchain components were removed.
+Gas usage was instrumented using Py-EVM\cite{pyevm}.
+The benchmark setup is built from low-level primitives which include only the virtual machine and an in-memory state database.
+The setup allows testing against different forks by switching the virtual machine.
+The mining and blockchain components are not used.
 
-This allows to read and write directly to contract storage without the need to apply thousands of transactions to prepare for a test case.
+This allows to have full control over the underlying state and to read and write directly to the contract storage without the need to apply hundreds of transactions to prepare for each test case.
 
-Storage is accessed by index, in the same order as defined in the Solidity source\cite{read-storage}.
+Storage is accessed by index, in the same order as defined in the Solidity source.
 Mappings are accesses by keccak of their key and index, both of which are encoded as bytes32.
-For example, balances mapping is accesses like this:
+For example, \textbf{balances} mapping is accesses like this:
 \begin{center}
 	keccak(bytes32(address) + bytes32(0))	
 \end{center}
 
-Allowances can be accessed by repeating that twice:
+Allowances are stored in the \textbf{allowed} mapping which can be accessed by repeating that twice:
 \begin{center}
 keccak(bytes32(spender) + keccak(bytes32(address) + bytes32(1)))	
 \end{center}
 
-All test cases use binary search to find the maximum number of transfers that can be fitted in a block.
+There is a helper function that simplifies mapping access, but be aware that it doesn't cover all the possible data types.
+Consult this article\cite{read-storage} if you plan to implement test cases for your contracts.
+
+All tests use binary search to find the maximum number of transfers that can be fitted in a single block.
 The complete test suite \href{https://github.com/banteg/disperse-reseach}{can be found on Github}.
 
 \section{Disperse}
 
-The contract is deployed to Ethereum mainnet and all its testnets, as well as multiple other EVM-compatible networks:
-\begin{quote}
-	\href{https://etherscan.io/address/0xD152f549545093347A162Dce210e7293f1452150}{0xD152f549545093347A162Dce210e7293f1452150}
-\end{quote}
+The smart contract discussed is deployed to Ethereum mainnet and all its testnets, as well as multiple other EVM-compatible networks at the same address: \href{https://etherscan.io/address/0xD152f549545093347A162Dce210e7293f1452150}{0xD152f549545093347A162Dce210e7293f1452150}.
 
-There is also a client-only frontend interface hosted at \href{https://disperse.app/}{disperse.app}. It is built with riot.js and ethers.js.
+There is also a client-only frontend interface hosted at \href{https://disperse.app/}{disperse.app} which interacts with Metamask.
 
 \begin{thebibliography}{1}
 
@@ -418,6 +522,8 @@ There is also a client-only frontend interface hosted at \href{https://disperse.
  	
  \bibitem{zrx-unlimited} \href{https://github.com/0xProject/0x-monorepo/blob/48ff13e3e22bf9f71bc1a367f86aaa0ae89989ae/packages/contracts/contracts/tokens/ZRXToken/UnlimitedAllowanceToken_v1.sol#L43-L45}{0x Project. {\em Unlimited Allowance Token v1}, 2017}
  
+\bibitem{subtleties} \href{https://github.com/ethereum/wiki/wiki/Subtleties}{Vitalik Buterin. {\em Ethereum Subtleties}, 2018}
+ 
 \bibitem{pyevm} \href{https://github.com/ethereum/py-evm}{Py-EVM. {\em A Python implementation of the Ethereum Virtual Machine}, 2018}
 
 \bibitem{read-storage} \href{https://medium.com/aigang-network/how-to-read-ethereum-contract-storage-44252c8af925}{Darius. {\em How to read Ethereum contract storage}, 2017}
@@ -429,33 +535,34 @@ There is also a client-only frontend interface hosted at \href{https://disperse.
 
 \section{Summary Tables}
 
-Here is a summary table of different strategies outlined in this paper. All numbers assume a transaction filling the whole block gas limit.
+Here is a summary of the strategies outlined in this paper. All numbers assume a transaction filling the whole block gas limit.
 
 \begin{table}[h]
-	\caption{Gas usage per token transfer}
+	\caption{Gas usage per transfer}
 	\begin{center}
 	\begin{tabular}{l r r}
 		Function & Byzantium & Constantinople \\ \hline
 		transfer & 36,947--51,947 & 36,947--51,947 \\
 		transferFrom & 44,400--59,400 & 44,400--59,400 \\
-		naive & 23,694--38,739 & 14,082--29,145 \\
-		optimized & 17,813--32,928 & 12,977--28,092 \\	
+		simple & 23,694--38,739 & 14,082--29,145 \\
+		optimized & 17,813--32,928 & 12,977--28,092 \\
+		native & 9,629--34,701 & 9,629--34,701 \\
 	\end{tabular}
 	\end{center}
 \end{table}
 %
 \begin{table}[h]
-	\caption{Max token transfers per block}
+	\caption{Maximum transfers per block}
 	\begin{center}
 	\begin{tabular}{l r r}
 		Function & Byzantium & Constantinople \\ \hline
 		transfer & 154--216 & 154--216 \\
 		transferFrom & 134--180 & 134--180 \\
-		naive & 206--337 & 274--568 \\
+		simple & 206--337 & 274--568 \\
 		optimized & 242--449 & 284--616 \\	
+		native & 230--830 & 230--830 \\
 	\end{tabular}
 	\end{center}
 \end{table}
-
 
 \end{document}
