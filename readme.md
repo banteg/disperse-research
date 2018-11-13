@@ -6,6 +6,8 @@ The benchmark setup is built from low-level primitives offered by `py-evm`.
 - Utils to generate deterministic keypairs, manipulate storage and more.
 - Effective gas estimation using binary search.
 
+Read the [research paper](https://github.com/banteg/disperse-reseach/blob/master/paper/disperse.pdf).
+
 ## Installation
 
 Requires Python 3.7, install using:
