@@ -56,7 +56,7 @@ Programs written in Solidity expect data to begin with a four-byte function sign
 
 The signature is computed by taking the first four bytes of the keccak hash of the function name and argument types. In this case:
 \begin{center}
-	bytes4(keccak(``transfer(address,uint256)'') = a9059cbb
+	bytes4(keccak256(``transfer(address,uint256)'') = a9059cbb
 \end{center}
 
 The arguments are tightly packed and are usually padded to the EVM word size of 32 bytes, so a 20-byte address is encoded with 12 leading zero bytes and a number is encoded as a 256-bit big-endian unsigned integer.
@@ -67,7 +67,7 @@ The topics are added to the block's bloom filter, which allows for efficient sea
 
 The event signature is computed like this:
 \begin{center}
-	keccak(``Transfer(address,address,uint256)'') = ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+	keccak256(``Transfer(address,address,uint256)'') = ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
 \end{center}
 
 \subsection{Estimating gas costs}
@@ -413,6 +413,7 @@ The main gas costs involved are:
 	$G_{transaction}$ & 21000 \\
 	$G_{call}$ & 700 \\
 	$G_{callvalue}$ & 9000 & if $value > 0$ \\
+	$G_{callstipend}$ & 2300 & subtracted from $G_{callvalue}$ \\
 	$G_{newaccount}$ & 25000 & if creates new account \\
 	$G_{balance}$ & 400 \\
 	$G_{txdata}$ & 4 & per zero byte \\
@@ -424,10 +425,10 @@ The main gas costs involved are:
 
 The gas cost of each CALL\cite{subtleties} is in range of 7,400--32,400 gas, whereas a regular transfer costs a flat fee of 21,000 gas.
 %
-\begin{align*}
-700 + 9000 - 2300 &= 7400 & \text{best case} \\
-700 + 9000 - 2300 + 25000 &= 32400 & \text{worst case}
-\end{align*}
+\begin{gather}
+G_{call}^{700} + G_{callvalue}^{9000} - G_{callstipend}^{2300} = 7400 \\
+G_{call}^{700} + G_{callvalue}^{9000} - G_{callstipend}^{2300} + G_{newaccount}^{25000} = 32400
+\end{gather}
 
 The $G_{newaccount}$ penalty makes it impractical to create new accounts using this algorithm, limiting the number of transfers in a block to 230, as opposed to 380 regular transfer.
 This is a 1.65x worse result in terms of gas, but it's still one transaction instead of $n$.
@@ -483,12 +484,13 @@ Storage is accessed by index, in the same order as defined in the Solidity sourc
 Mappings are accesses by keccak of their key and index, both of which are encoded as bytes32.
 For example, \textbf{balances} mapping is accesses like this:
 \begin{center}
-	keccak(bytes32(address) + bytes32(0))	
+	keccak256(bytes32(address) + bytes32(0))	
 \end{center}
 
 Allowances are stored in the \textbf{allowed} mapping which can be accessed by repeating that twice:
 \begin{center}
-keccak(bytes32(spender) + keccak(bytes32(address) + bytes32(1)))	
+index = keccak256(bytes32(address) + bytes32(1)) \\
+keccak256(bytes32(spender) + index)	
 \end{center}
 
 There is a helper function that simplifies mapping access, but be aware that it doesn't cover all the possible data types.
