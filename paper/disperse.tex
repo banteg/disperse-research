@@ -27,21 +27,24 @@
 \abstract{
 This paper dissects the gas costs incurred when transferring tokens on EVM\footnote{Ethereum Virtual Machine}-based networks and discusses the possible optimization strategies.
 It presents a concise smart contract for batch sending both native and ERC-20 tokens. 
-It argues about the design decisions that allow to fit 2--3x more transfers in a single block.
+It argues about the design decisions that would allow to fit 2--3x more transfers in a single block.
 The paper also discusses how the token developers optimize for gas usage and explains what the upcoming Constantinople hard fork means for token transfers and this algorithm.
 }
 
 \section{Background}
 Ethereum is a decentralized ledger that allows arbitrary programs to run on its virtual machine.
 These programs are called smart contracts.
-Program execution is instrumented and each opcode has its own cost.
-The amount of computation is limited by the user-provided gas limit.
-%A user can call a smart contract function by passing the encoded arguments along with a transaction.
-A contract can chain the call to other contracts allowing for complex interactions.\cite{ethereum}
+In addition to balance and nonce, contract accounts have an associated EVM code and storage.
+A contract can chain a call to other contracts allowing for complex interactions.\cite{ethereum}
+
+The base unit of computation is called gas.
+Program execution is instrumented with each opcode having its own gas cost.
+The user provides a gas limit and a gas price, the maximum amount of computation allowed and the cost per unit of gas respectively.
+Transaction fee is the product of the actual gas used and the gas price.
 
 ERC-20 is a community-developed standard interface for fungible tokens\cite{eip20}.
-Such contracts keep track of user \textbf{balances} in its storage and make the corresponding updates on each successful call of \textbf{transfer} function.
-%A user can \textbf{approve} another account to transfer up to a certain amount of tokens on their behalf.
+Such contracts keep track of user balances in its storage and make the corresponding updates on each successful \textbf{transfer} function call.
+The state-changing operations are are disincentivized using higher gas costs.
 
 \section{Sending Tokens}
 \subsection{Transaction data}
