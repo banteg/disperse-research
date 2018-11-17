@@ -52,8 +52,8 @@ This paper proposes ready-to-use batching protocol for both native (ETH) and ERC
 It can aid heavy gas consumers like Binance 
 {\color{red} add binance reference}
 
-\section{Sending Tokens}
-\subsection{Single Transfers}
+\section{Sending tokens}
+\subsection{Single transfers}
 The simplest token contract consists of a mapping containing user balances and a \textbf{transfer} function that updates it:
 %
 \begin{center}
@@ -196,10 +196,10 @@ A contract can use just one \textbf{transferFrom} to itself and then distribute 
 	}
 \end{algorithm}
 
-Despite the need to iterate over the list twice, this approach saves 5000 gas on each transfer because \textbf{allowance} is only touched once.
-The side effect of this is that the Transfer events will have the contract's address as a sender.
+Despite the need to iterate over the list twice, Algorithm \ref{optimized} saves 5000 gas on each transfer because \textbf{allowance} is only touched once.
+%The side effect of this approach is that the Transfer events will have the contract's address as a sender.
 
-This approach allows to fit 242--449 transfers in a block and averages down the cost of one transfer to 17,813--32,928 gas.
+This approach allows to fit 242--449 transfers in a block and reduces the cost of one transfer to 17,813--32,928 gas.
 This is a 1.58--2.07x improvement over regular transfers and 1.18-1.33x improvement over a simpler approach.
 
 \subsection{Visual comparison}
@@ -207,54 +207,62 @@ This is a 1.58--2.07x improvement over regular transfers and 1.18-1.33x improvem
 The chart below presents a comparison of two methods with \textit{n} \textbf{transfer} transactions.
 The area shows the bounds of the worst (all recipients had zero token balances) and the best cases (everyone had a non-zero balance).
 
-\begin{figure}[h]
+
+
+\begin{figure}[h!]
+\centering{
 \begin{tikzpicture}
-	\begin{groupplot}[
-		width=7.5cm,
-		xlabel=addresses,
-		xmax=480,
+	\begin{axis}[
+		xlabel=transfers,
+		xmax=500,
+		ymax=8300000,
 		axis lines=left,
-		enlargelimits,
+%		enlargelimits,
 		legend pos=south east,
-		group style={
-			group size=2 by 1
-		}
+		ylabel=gas cost,
+%		title=native token,
 	]
-	\nextgroupplot[ylabel=gas cost, title=simple approach]
-    \addplot[patch, black, faceted color=black, fill opacity=.1]
+    \addplot[forget plot, patch, dashed, faceted color=black!50, fill opacity=0]
     coordinates {
         (0, 0)
-        (154, 8000000) % token.transfer, 51947 gas, 30947 intrinsic
-		(216, 8000000) % token.transfer, 36947 gas, 15947 intrinsic
+        (154, 8000000) % token transfer, zero balance 51947
+		(216, 8000000) % token transfer, non-zero balance 36947
     };
-    \addplot[patch, red, faceted color=red, fill opacity=.1]
-    coordinates {
-        (0, 0)
-		(206, 8000000) % token.transferFrom, 59400 gas, 38400 intrinsic
-		(337, 8000000) % token.transferFrom, 44400 gas, 23400 intrinsic
-    };
-    \nextgroupplot[title=optimized approach]
     \addplot[forget plot, patch, black, faceted color=black, fill opacity=.1]
     coordinates {
         (0, 0)
-        (154, 8000000) % token.transfer, 51947 gas, 30947 intrinsic
-		(216, 8000000) % token.transfer, 36947 gas, 15947 intrinsic
+		(206, 8000000) % disperse token, naive, zero balances, 206 recipients, 7980250 gas, 38739 gas/transfer
+		(337, 8000000) % disperse token, naive, non-zero balances, 337 recipients, 7984991 gas, 23694 gas/transfer
     };
     \addplot[forget plot, patch, red, faceted color=red, fill opacity=.1]
     coordinates {
         (0, 0)
-		(242, 8000000) % token.transferFrom, 59400 gas, 38400 intrinsic
-		(449, 8000000) % token.transferFrom, 44400 gas, 23400 intrinsic
+		(242, 8000000) % disperse token, optimized, zero balances, 242 recipients, 7968768 gas, 32928 gas/transfer
+		(449, 8000000) % disperse token, optimized, non-zero balances, 449 recipients, 7998449 gas, 17813 gas/transfer
     };
     % for legend only
-    \addplot[] coordinates {(0,0)};
+    \addplot[black!50, dashed] coordinates {(100, 0)};
+    \addplot[black] coordinates {(100,0)};
     \addplot[red] coordinates {(100,0)};
-    \legend{transfer, disperse}
-	\end{groupplot}
+    \legend{transfer, simple, optimized}
+	\end{axis}
 \end{tikzpicture}
+}
 \caption{Gas profile of ERC-20 token transfers}
 \end{figure}
 
+\begin{table}[h]
+	\caption{Properties with $\text{gas limit} \rightarrow 8000000$}
+	\begin{center}
+	\begin{tabular}{l r r r}
+		function & transfers/block & gas/transfer & transactions \\ \hline
+		transfer & 154-216 & 36,947--51,947 & 154--216 \\
+		transferFrom & 134--180 & 44,400--59,400 & 134--180 \\
+		simple & 206--337 & 23,694--38,739 & 1 \\
+		optimized & 242--449 & 17,813--32,928 & 1
+	\end{tabular}
+	\end{center}
+\end{table}
 
 \subsection{Caveats}
 
