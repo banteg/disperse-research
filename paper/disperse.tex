@@ -44,10 +44,16 @@ Transaction fee is the product of the actual gas used and the gas price.
 
 ERC-20 is a community-developed standard interface for fungible tokens\cite{eip20}.
 Such contracts keep track of user balances in its storage and make the corresponding updates on each successful \textbf{transfer} function call.
-The state-changing operations are are disincentivized using higher gas costs.
+The state-changing operations are are disincentivized with higher gas costs.
+
+A lot of effort is currently directed at scaling Ethereum.
+This paper proposes ready-to-use batching protocol for both native (ETH) and ERC-20 tokens, which allows to fit 2--3x more transfers in a single block.
+
+It can aid heavy gas consumers like Binance 
+{\color{red} add binance reference}
 
 \section{Sending Tokens}
-\subsection{Transaction data}
+\subsection{Single Transfers}
 The simplest token contract consists of a mapping containing user balances and a \textbf{transfer} function that updates it:
 %
 \begin{center}
@@ -55,23 +61,38 @@ The simplest token contract consists of a mapping containing user balances and a
 \end{center}
 %
 Sending a transaction with the attached data to the address that contains code is used to invoke a program.
-Programs written in Solidity expect data to begin with a four-byte function signature with the rest being passed to the function.
+Programs written in Solidity expect data to begin with a four-byte function signature with the rest being the function arguments.
 
-The signature is computed by taking the first four bytes of the keccak hash of the function name and argument types. In this case:
+The signature of a function is computed by taking the first four bytes of the keccak hash of the function name and argument types. In this case:
 \begin{center}
-	bytes4(keccak256(``transfer(address,uint256)'') = a9059cbb
+	function = ``transfer(address,uint256)'' \\
+	signature = bytes4(keccak256(function)) = a9059cbb
 \end{center}
 
-The arguments are tightly packed and are usually padded to the EVM word size of 32 bytes, so a 20-byte address is encoded with 12 leading zero bytes and a number is encoded as a 256-bit big-endian unsigned integer.
+The arguments are tightly packed and padded to EVM word size of 32 bytes, so a 20-byte address is encoded with 12 leading zero bytes and a number is encoded as a 256-bit big-endian unsigned integer.
 
-Each successful token transfer updates the balances for both the sender and the recipient and also emits a \textbf{Transfer} event.
-The event contains three indexed topics (event signature, sender and recipient) and the raw data field with the value sent.
+Each successful token transfer updates the balances for both the sender and the recipient and emits a \textbf{Transfer} event.
+The event contains three indexed log topics (event signature, sender and recipient) and the raw data field with the amount sent.
 The topics are added to the block's bloom filter, which allows for efficient search and filtering.
 
-The event signature is computed like this:
+%The event signature is computed like this:
+%\begin{center}
+%	event = ``Transfer(address,address,uint256)" \\
+%	topic = keccak256(event) = 
+%	\smaller{ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef}
+%\end{center}
+
+A user can give another account the right to spend up to a certain amount on her behalf. This concept is called allowance.
+Allowances are stored as a map of addresses to spenders to their remaining allowance:
 \begin{center}
-	keccak256(``Transfer(address,address,uint256)'') = ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+	allowed = $(address \rightarrow (address \rightarrow uint256))$
 \end{center}
+
+A user invokes \textbf{approve} function with a spender address and a maximum allowance as the arguments.
+Then the spender can transfer the tokens by calling \textbf{transferFrom} passing the user address, a recipient and a value.
+
+This is a common pattern for interacting with the smart contracts.
+Instead of calling \textbf{transfer} function, which doesn't notify the recipient, the user calls a contract which chains the call to the token contract's \textbf{transferFrom} and makes the operation on behalf of the user.
 
 \subsection{Estimating gas costs}
 
@@ -88,17 +109,18 @@ The event signature is computed like this:
 	$G_{log}$ & 375 \\
 	$G_{logtopic}$ & 375 \\
 	$G_{logdata}$ & 8 & per byte \\
-	$G_{txdata}$ & 4 & per zero byte \\
-	$G_{txdata}$ & 68 & per non-zero byte \\
+	$G_{txdatazero}$ & 4 & per zero byte \\
+	$G_{txdatanonzero}$ & 68 & per non-zero byte \\
 \end{tabular}
 \end{center}
 \end{table}
 %
-Here is a breakdown of the most expensive operations during a token transfer. For gas costs see Table~\ref{gas-costs}.
+Let's break down the most expensive operations during \textbf{transfer}.
+For gas costs see Table~\ref{gas-costs}.
 
 \begin{enumerate}
 	\item Invoke a transaction: $G_{transaction}$
-	\item Cost of the attached data: $68 \cdot G_{txdata}$
+	\item Cost of the attached data: $68 \cdot (G_{txdatanonzero} + G_{txdatazero})$
 	\item Load the balances: $2 \cdot G_{sload}$
 	\item Store the updated balances: $2 \cdot G_{sstore}$
 	\item Emit the Transfer event: $G_{log} + 3 \cdot G_{logtopic} + 32 \cdot G_{logdata}$
@@ -109,37 +131,25 @@ There is more logic involved, but the rest is cheap enough to ignore in this est
 We assume that the address contains no zero bytes which is the most common case.
 
 Balances are stored in the lowest denomination as unsigned 256-bit integers.
-%Most tokens implement a view-only function called \textbf{decimals} which returns the number of decimal places in the base unit.
-%This number hints the clients how to present the balance to the user, but it has no effect on the underlying data.
 Most tokens go for 18 decimal points taking after the native currency (1 ether = $10^{18}$ wei).
 The median transfer value across the recent transfers on Ethereum mainnet is $10^{20}$ wei (100 tokens), we'll use that value in our tests.
 
-With these assumptions the data passed along with the transaction has 31 non-zero and 37 zero bytes which results in 2256 gas cost.
+With these assumptions the data passed along with the transaction has 31 non-zero and 37 zero bytes:
+\begin{equation}
+	G_{data} = 31 \cdot G_{txdatanonzero} + 32 \cdot G_{txdatazero} = 2256 \text{ gas}
+\end{equation}
 
-It's safe to assume that the sender has had a non-zero balance, so the only variable left is whether the recipient's balance was zero. This leaves us with a ballpark estimation of 35,412--50,412 gas:
+It's safe to assume that the sender's token balance is non-zero, so the only variable left is whether the recipient's balance was zero.
+This leaves us with a ballpark estimation of 35,412--50,412 gas:
 \begin{gather}
 	G_{transaction}^{21000} + G_{data}^{2256} + G_{sload}^{400} + G_{sstore}^{10000} + G_{log}^{1756} = 35412 \\
 	G_{transaction}^{21000} + G_{data}^{2256} + G_{sload}^{400} + G_{sstore}^{25000} + G_{log}^{1756} = 50412
 \end{gather}
 %
-This is not far from truth, the most popular implementation of ERC-20 standard by  OpenZeppelin\cite{openzeppelin} consumes 36,947--51,947 gas.
+This is not far from truth, the widely-used OpenZeppelin\cite{openzeppelin} ERC-20 implementation consumes 36,947--51,947 gas.
 It is possible to fit 154--216 transfers in a block with the current block gas limit of  8,000,000.
 
-
-\subsection{Advanced transfers}
-
-A user can give another account the right to spend up to a certain amount on her behalf. This concept is called allowance. Allowances are kept in the contract storage in a mapping that maps the addresses to spenders to their remaining allowance:
-\begin{center}
-	allowed = $(address \rightarrow (address \rightarrow uint256))$
-\end{center}
-
-A user invokes \textbf{approve} passing the spender address and a maximum allowance as the arguments.
-Then the spender can transfer the tokens by calling \textbf{transferFrom} passing the user address, a recipient and a value.
-
-This is a common pattern for interacting with smart contracts.
-Instead of calling \textbf{transfer} function which doesn't notify the recipient, the user calls a contract which chains the call to the token contract's \textbf{transferFrom} and makes the operation on behalf of the user.
-
-The gas costs for this function are in range of 44,400--59,400, or up to 134--180 transfers per block. The main addition is 5000 gas for updating allowance.
+The gas cost for \textbf{transferFrom} function is in range of 44,400--59,400, or up to 134--180 transfers per block. The main addition is 5000 gas for updating allowance.
 
 \section{Batch transfers}
 \subsection{Simple approach}
