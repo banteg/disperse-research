@@ -47,7 +47,7 @@ Such contracts keep track of user balances in its storage and make the correspon
 The state-changing operations are are disincentivized with higher gas costs.
 
 A lot of effort is currently directed at scaling Ethereum.
-This paper proposes ready-to-use batching protocol for both native (ETH) and ERC-20 tokens, which allows to fit 2--3x more transfers in a single block.
+This paper proposes ready-to-use batching protocol for both native (ETH) and ERC-20 tokens which allows to fit 2--3x more transfers in a single block.
 
 It can aid heavy gas consumers like Binance 
 {\color{red} add binance reference}
@@ -73,7 +73,7 @@ The arguments are tightly packed and padded to EVM word size of 32 bytes, so a 2
 
 Each successful token transfer updates the balances for both the sender and the recipient and emits a \textbf{Transfer} event.
 The event contains three indexed log topics (event signature, sender and recipient) and the raw data field with the amount sent.
-The topics are added to the block's bloom filter, which allows for efficient search and filtering.
+The topics are added to the block's bloom filter which allows for efficient search and filtering.
 
 %The event signature is computed like this:
 %\begin{center}
@@ -142,8 +142,8 @@ With these assumptions the data passed along with the transaction has 31 non-zer
 It's safe to assume that the sender's token balance is non-zero, so the only variable left is whether the recipient's balance was zero.
 This leaves us with a ballpark estimation of 35,412--50,412 gas:
 \begin{gather}
-	G_{transaction}^{21000} + G_{data}^{2256} + G_{sload}^{400} + G_{sstore}^{10000} + G_{log}^{1756} = 35412 \\
-	G_{transaction}^{21000} + G_{data}^{2256} + G_{sload}^{400} + G_{sstore}^{25000} + G_{log}^{1756} = 50412
+	G_{transaction}^{21000} + G_{data}^{2256} + G_{sload}^{400} + G_{sstore}^{10000} + G_{log}^{1756} = 35412 \text{ gas} \\
+	G_{transaction}^{21000} + G_{data}^{2256} + G_{sload}^{400} + G_{sstore}^{25000} + G_{log}^{1756} = 50412 \text{ gas}
 \end{gather}
 %
 This is not far from truth, the widely-used OpenZeppelin\cite{openzeppelin} ERC-20 implementation consumes 36,947--51,947 gas.
@@ -154,25 +154,27 @@ The gas cost for \textbf{transferFrom} function is in range of 44,400--59,400, o
 \section{Batch transfers}
 \subsection{Simple approach}
 
-A simple approach would be to create a contract that receives a token address, a list of recipients and a list of values and calls \textbf{transferFrom} while iterating over (recipients, values) pairwise. This would allow to to pay $G_{transaction}$ just once which makes a significant difference when approaching the block gas limit.
+The gas costs can be reduced by invoking multiple transfers at once.
+A simple approach is to create a contract that receives a token address, a list of recipients and a list of values and calls token's \textbf{transferFrom} while iterating over recipients and values pairwise. 
+This allows to to pay $G_{transaction}$ just once which makes a significant difference when approaching the block gas limit.
+
+Algorithm \ref{simple} is based on a simplified Multiplexer contract\cite{multiplexer}.
+It removes the unnecessary assumptions about the recipients and values arrays as transaction reverts on out of bounds access anyway\cite{solidity-errors}.
+It also uses uint256 instead of uint8 for iterator variable which saves some gas because no additional type conversion is required.
+
+One such transaction could accommodate 206--337 transfers with an average gas cost of 23,694--38,739 per transfer. 
+This is already a 1.34--1.56x improvement over direct transfers.
 
 \begin{algorithm}[h]
 \SetKwInOut{Input}{input}
 \label{simple}
-\caption{Disperse ERC-20 token using transferFrom}
+\caption{Disperse ERC-20 tokens using transferFrom}
 \Input{token, recipients, values}
 \BlankLine
 \For{$i \in [0 \dots \text{recipients.length})$}{
 	require(token.transferFrom(sender, recipients[i], values[i]))
 }
 \end{algorithm}
-%
-This function is based on a simplified Multiplexer contract\cite{multiplexer}.
-It removes the unnecessary assumptions about the recipients and values arrays as transaction reverts on out of bounds access anyway\cite{solidity-errors}.
-It also uses uint256 instead of uint8 for iterator variable, which saves some gas because no additional type conversion is needed.
-
-One such transaction could accommodate 206--337 transfers with an average gas cost of 23,694--38,739 per transfer. 
-This is already a 1.34--1.56x improvement over direct transfers.
 
 \subsection{Optimized approach}
 
