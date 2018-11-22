@@ -6,6 +6,7 @@ from eth.vm.forks.constantinople import ConstantinopleVM
 from eth_utils import to_wei
 
 from token_research.contracts.disperse import Disperse
+from token_research.contracts.bulksender import BulkSender
 from token_research.contracts.token import Token
 from token_research.utils import accounts
 from token_research.utils import binary_search
@@ -19,14 +20,15 @@ def main():
     for vm_class in vms:
         evm = EVM(vm_class)
         print(evm.vm.fork)
-
         # load up the first 10 accounts with ether
         for n in range(1, 11):
             evm.set_balance(accounts.addr(n), to_wei(1, 'tether'))
-
-        benchmark_token(evm)
-        benchmark_disperse_ether(evm)
-        benchmark_disperse_token(evm)
+        for contract in [BulkSender]:
+            disperse = contract(evm)
+            print(contract.name)
+            benchmark_token(evm)
+            benchmark_disperse_ether(evm, disperse)
+            benchmark_disperse_token(evm, disperse)
 
 
 def benchmark_token(evm):
@@ -47,9 +49,7 @@ def benchmark_token(evm):
         print(f'token transferFrom, {zero} balance', gas)
 
 
-def benchmark_disperse_ether(evm):
-    disperse = Disperse(evm)
-
+def benchmark_disperse_ether(evm, disperse):
     for have_balances in [False, True]:
         func = partial(disperse.estimate_ether, have_balances)
         label = ', '.join([
@@ -64,10 +64,8 @@ def benchmark_disperse_ether(evm):
         )
 
 
-def benchmark_disperse_token(evm):
-    disperse = Disperse(evm)
-
-    for simple in [True, False]:
+def benchmark_disperse_token(evm, disperse):
+    for simple in [False]:
         for have_balances in [False, True]:
             func = partial(disperse.estimate_token, have_balances, simple)
             label = ', '.join([

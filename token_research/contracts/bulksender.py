@@ -6,9 +6,9 @@ from token_research.utils import Contract
 from token_research.utils.recipients import generate_recipients
 
 
-class Disperse(Contract):
+class BulkSender(Contract):
 
-    name = 'Disperse'
+    name = 'BulkSender'
 
     def __init__(self, evm):
         self.evm = evm
@@ -51,9 +51,9 @@ class Disperse(Contract):
             return
 
     def disperse_token(self, token, recipients, values, simple=False):
-        name = 'disperseTokenSimple' if simple else 'disperseToken'
-        func = f'{name}(address,address[],uint256[])'
-        return self.transact(func, [token.address, recipients, values])
+        name = 'mutiSendCoinWithDifferentValue(address,address[],uint256[])'
+        return self.transact(name, [token.address, recipients, values])
 
     def disperse_ether(self, recipients, values):
-        return self.transact('disperseEther(address[],uint256[])', [recipients, values], value=sum(values))
+        name = 'mutiSendETHWithDifferentValue(address[],uint256[])'
+        return self.transact(name, [recipients, values], value=sum(values) + to_wei(10, 'finney'))
