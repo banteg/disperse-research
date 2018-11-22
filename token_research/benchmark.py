@@ -7,6 +7,7 @@ from eth_utils import to_wei
 
 from token_research.contracts.disperse import Disperse
 from token_research.contracts.bulksender import BulkSender
+from token_research.contracts.stormsender import StormSender
 from token_research.contracts.token import Token
 from token_research.utils import accounts
 from token_research.utils import binary_search
@@ -23,10 +24,10 @@ def main():
         # load up the first 10 accounts with ether
         for n in range(1, 11):
             evm.set_balance(accounts.addr(n), to_wei(1, 'tether'))
-        for contract in [BulkSender]:
+        benchmark_token(evm)
+        for contract in [StormSender, BulkSender, Disperse]:
             disperse = contract(evm)
             print(contract.name)
-            benchmark_token(evm)
             benchmark_disperse_ether(evm, disperse)
             benchmark_disperse_token(evm, disperse)
 
