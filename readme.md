@@ -2,7 +2,7 @@
 
 Byzantium and Constantinople are different Ethereum versions. Constantinople will be activated on the mainnet on January 16th, 2019.
 
-**Recipients** column shows the maximum number of recipients for a transaction using the block gas limit.
+**Recipients** column shows the maximum number of recipients for a transaction filling the whole block (8,000,000 gas limit).
  **Gas usage** is shown per transfer.
 **Fee** is additional service fee.
 
