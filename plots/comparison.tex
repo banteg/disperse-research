@@ -1,0 +1,62 @@
+\documentclass[margin=5mm]{standalone}
+\usepackage[utf8]{inputenc}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+
+\begin{document}
+
+\begin{tikzpicture}
+	\begin{axis}[
+		title=send ether,
+		ylabel=gas used,
+		xlabel=recipients,
+		legend pos=south east,
+	]
+	\addplot[forget plot, patch, dashed, faceted color=black!50, fill opacity=0] coordinates {
+		(0, 0)
+		(200, 7011565)
+		(200, 2011565)
+	};
+	\addplot[forget plot, patch, black, faceted color=black, fill opacity=.1] coordinates {
+		(0, 0)
+		(230, 7997586)
+		(255, 2517833)
+	};
+	\addplot[forget plot, patch, red, faceted color=red, fill opacity=.1] coordinates {
+		(0, 0)
+		(230, 7981378)
+		(830, 7992706)
+	};
+	\end{axis}
+\end{tikzpicture}
+
+\begin{tikzpicture}
+	\begin{axis}[
+		title=send tokens,
+		xlabel=recipients,
+		legend pos=south east,
+	]
+	\addplot[forget plot, patch, dashed, faceted color=black!50, fill opacity=0] coordinates {
+		(0, 0)
+		(200, 4784311)
+		(200, 7784311)
+	};
+	\addplot[forget plot, patch, black, faceted color=black, fill opacity=.1] coordinates {
+		(0, 0)
+		(207, 7971280)
+		(255, 6012193)
+	};
+	\addplot[forget plot, patch, red, faceted color=red, fill opacity=.1] coordinates {
+		(0, 0)
+		(242, 7968768)
+		(449, 7998449)
+	};
+	% legend only
+	\addplot[black!50, dashed] coordinates {(100, 0)};
+    \addplot[black] coordinates {(100,0)};
+    \addplot[red] coordinates {(100,0)};
+	\legend{multisender, bulksender, disperse}
+	\end{axis}
+\end{tikzpicture}
+
+\end{document}
