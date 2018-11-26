@@ -266,14 +266,13 @@ disperse & 242--449 & 17,813--32,928 & 1
 
 \subsection{Caveats}
 
-ERC-20 interface dictates that all transfer functions should return \textit{true} on successful transfer.
-
-However, there are at least 130 live tokens that don't follow this rule and return nothing.
+ERC-20 interface expects successful token transfers to return \textit{true}.
+However, there are at least 130 live tokens that don't follow it and return nothing.
 The problem wasn't discovered for a long time because these tokens behaved as expected\cite{cremer}.
 By pure coincidence the memory slot where the return value was expected contained the function selector which has always evaluated to \textit{true}.
 
 Byzantium hard fork in November 2017 introduced a new opcode (RETURNDATASIZE) that enables reading of dynamically-sized data.
-Contracts compiled with solc\footnote{Solidity compiler} $\geq 0.4.22$ are checking the size of the returned data instead or blindly reading a chunk of memory.
+Contracts compiled with solc\footnote{Solidity compiler} $\geq 0.4.22$ are checking the size of the returned data instead of blindly reading a chunk of memory.
 Such contracts won't be able to interact with these tokens.
 Some of the more notable tokens affected are BNB and OMG.
 
