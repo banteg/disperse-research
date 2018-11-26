@@ -203,11 +203,11 @@ This is a 1.58--2.07x improvement over regular transfers and 1.18-1.33x improvem
 
 \subsection{Visual comparison}
 
-Figure \ref{chart-byzantium} presents a comparison of two methods with \textit{n} \textbf{transfer} transactions.
-The area shows the bounds of the worst (all recipients had zero token balances) and the best cases (everyone had a non-zero balance).
+Table \ref{table-byzantium} and Figure \ref{chart-byzantium} present a comparison of two methods with \textit{n} \textbf{transfer} transactions as a baseline.
+The area on the charts shows the bounds of the worst (all recipients had zero token balances) and the best cases (everyone had a non-zero balance).
 
 \begin{table}[h]
-\caption{Properties with gas limit $\rightarrow$ 8,000,000}
+\caption{ERC-20 transfers with gas limit $\rightarrow$ 8,000,000}
 \label{table-byzantium}
 \begin{center}
 \begin{tabular}{lrrr}
@@ -266,24 +266,6 @@ disperseToken & 242--449 & 17,813--32,928 & 1
 
 \section{Further Optimization}
 
-\subsection{Unlimited Allowance}
-Allowance is oftentimes used as a binary switch.
-A common pattern is to \textbf{approve} $\text{uint256}_{max}$ to indicate unlimited allowance:
-
-\begin{center}	
-\begin{tabular}{r l}
-Allowance & Interpretation \\ \midrule
-0 & Disabled  \\
-$2^{256}-1$ & Enabled
-\end{tabular}
-\end{center}
-
-There are at least two live ERC-20 tokens that optimize for gas usage using this pattern.
-0x protocol's own ZRX token interprets $2^{256}-1$ as a magic value meaning ``unlimited allowance" and skips updating the allowance altogether in this case\cite{zrx-unlimited}.
-This saves 5000 gas by skipping one SSTORE and makes the cost of \textbf{transfer} and \textbf{transferFrom} equal.
-
-Another example is Wrapped Ether (WETH), which primary function is to trustlessly swap the native token to its ERC-20 form or back.
-
 \subsection{Constantinople}
 
 Constantinople is the name of Ethereum hard fork which is set to go live mid-January 2019.
@@ -315,8 +297,22 @@ G_{sset}^{20000} + n \cdot G_{snoop}^{200} - R_{sresetclear}^{19800} = 200 \cdot
 
 The new metering rules result in a 25x improvement of the total cost of updating the contract token balance.
 
-See Figure \ref{eip1283-plot} for a comparison of how this change affects the performance of the proposed contract.
+See Table \ref{table-constantinople} and Figure \ref{eip1283-plot} for a comparison of how this change affects the performance of the proposed contract.
 
+
+\begin{table}[h]
+\caption{ERC-20 transfers with Constantinople VM}
+\label{table-constantinople}
+\begin{center}
+\begin{tabular}{lrrr}
+Method              & Transfers & Gas/transfer   & Transactions \\ \midrule
+transfer            & 154--216  & 36,947--51,947 & 154--216     \\
+transferFrom        & 134--180  & 44,400--59,400 & 134--180     \\
+disperseTokenSimple & 274--568  & 14,082--29,145 & 1            \\
+disperseToken       & 284--616  & 12,977--28,092 & 1           
+\end{tabular}
+\end{center}
+\end{table}
 
 \begin{figure}[h]
 \begin{tikzpicture}
@@ -383,19 +379,25 @@ See Figure \ref{eip1283-plot} for a comparison of how this change affects the pe
 
 The overall effect is improvement from 242--449 transfers to 284--616 for optimized approach, which is 1.17--1.37x better result and 1.84--2.85x improvement over non-batched transfers.
 
-\begin{table}[h]
-\caption{Parameters with Constantinople VM}
-\label{table-constantinople}
-\begin{center}
-\begin{tabular}{lrrr}
-Method              & Transfers & Gas/transfer   & Transactions \\ \midrule
-transfer            & 154--216  & 36,947--51,947 & 154--216     \\
-transferFrom        & 134--180  & 44,400--59,400 & 134--180     \\
-disperseTokenSimple & 274--568  & 14,082--29,145 & 1            \\
-disperseToken       & 284--616  & 12,977--28,092 & 1           
+
+\subsection{Unlimited Allowance}
+Allowance is oftentimes used as a binary switch.
+A common pattern is to \textbf{approve} $\text{uint256}_{max}$ to indicate unlimited allowance:
+
+\begin{center}	
+\begin{tabular}{r l}
+Allowance & Interpretation \\ \midrule
+0 & Disabled  \\
+$2^{256}-1$ & Enabled
 \end{tabular}
 \end{center}
-\end{table}
+
+There are at least two live ERC-20 tokens that optimize for gas usage using this pattern.
+0x protocol's own ZRX token interprets $2^{256}-1$ as a magic value meaning ``unlimited allowance" and skips updating the allowance altogether in this case\cite{zrx-unlimited}.
+This saves 5000 gas by skipping one SSTORE and makes the cost of \textbf{transfer} and \textbf{transferFrom} equal.
+
+Another example is Wrapped Ether (WETH), which primary function is to trustlessly swap the native token to its ERC-20 form or back.
+
 
 
 \section{Native Token}
@@ -420,34 +422,7 @@ One way to approach this would be to calculate the total, similar to Algorithm~\
 	}
 \end{algorithm}
 
-The main gas costs involved are:
-\begin{enumerate}
-	\item Invoke a transaction: $G_{transaction}$
-	\item Cost of the attached data: $64 \cdot G_{txdata}$
-	\item Transfer (CALL): $G_{call} + G_{callvalue} + G_{newaccount} - G_{callstipend}$
-	\item Get account balance: $G_{balance}$
-\end{enumerate}
-
-\begin{table}[h]
-\caption{Ethereum gas schedule}
-\label{gas-costs-2}
-\begin{center}
-\begin{tabular}{l r l}
-	Name & Value & Description \\ \midrule
-	$G_{transaction}$ & 21000 \\
-	$G_{call}$ & 700 \\
-	$G_{callvalue}$ & 9000 & if $value > 0$ \\
-	$G_{callstipend}$ & 2300 & subtracted from $G_{callvalue}$ \\
-	$G_{newaccount}$ & 25000 & if creates new account \\
-	$G_{balance}$ & 400 \\
-	$G_{txdata}$ & 4 & per zero byte \\
-	$G_{txdata}$ & 68 & per non-zero byte \\
-
-\end{tabular}
-\end{center}
-\end{table}
-
-The resulting gas cost of each CALL\cite{subtleties} is in range of 7,400--32,400 gas, whereas a regular transaction costs a flat fee of 21,000 gas.
+Contract transfers use CALL\cite{subtleties} opcode which costs 7,400--32,400 gas, whereas a regular transaction costs a flat fee of 21,000 gas.
 %
 \begin{align}
 G_{call}^{700} + G_{callvalue}^{9000} - G_{callstipend}^{2300} &= 7400 \\
@@ -455,13 +430,40 @@ G_{call}^{700} + G_{callvalue}^{9000} - G_{callstipend}^{2300} + G_{newaccount}^
 \end{align}
 
 The $G_{newaccount}$ penalty makes it impractical to create new accounts using this algorithm, limiting the number of transfers in a block to 230, as opposed to 380 regular transfers.
-This is a 40\% worse result in terms of gas usage, but it's still one transaction instead of $n$.
+This is 40\% worse result in terms of gas usage, but it is still one transaction instead of $n$.
 
 Transferring to existing accounts from a contract allows to fit 830 transfers in a block, which is a massive 2.18x improvement over regular transfers.
 Note that existing account may have zero balance.
 The resulting cost per transfer is 9,629--34,701 gas.
 
 Constantinople hard fork has no effect on sending native tokens.
+
+\begin{table}[h]
+\caption{Ethereum gas schedule}
+\label{gas-costs-2}
+\begin{center}
+\begin{tabular}{l r l}
+	Name & Value & Description \\ \midrule
+	$G_{call}$ & 700 \\
+	$G_{callvalue}$ & 9000 & if $value > 0$ \\
+	$G_{callstipend}$ & 2300 & subtracted from $G_{callvalue}$ \\
+	$G_{newaccount}$ & 25000 & if creates new account
+
+\end{tabular}
+\end{center}
+\end{table}
+
+\begin{table}[h]
+\caption{Native token transfers with gas limit $\rightarrow$ 8,000,000}
+\label{table-native}
+\begin{center}
+\begin{tabular}{@{}llll@{}}
+Method        & Transfers & Gas/transfer  & Transactions \\ \midrule
+call          & 380       & 21000         & 380          \\
+disperseEther & 230--830  & 9,629--34,701 & 1           
+\end{tabular}
+\end{center}
+\end{table}
 
 \begin{figure}[h!]
 \centering{
@@ -494,19 +496,6 @@ Constantinople hard fork has no effect on sending native tokens.
 }
 \caption{Gas profile of native token transfers}
 \end{figure}
-
-
-\begin{table}[]
-\caption{Native token transfers with gas limit $\rightarrow$ 8,000,000}
-\label{table-native}
-\begin{center}
-\begin{tabular}{@{}llll@{}}
-Method        & Transfers & Gas/transfer  & Transactions \\ \midrule
-call          & 380       & 21000         & 380          \\
-disperseEther & 230--830  & 9,629--34,701 & 1           
-\end{tabular}
-\end{center}
-\end{table}
 
 
 \section{Methodology}
