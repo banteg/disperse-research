@@ -29,14 +29,14 @@
 This paper dissects the gas costs incurred when transferring tokens on EVM\footnote{Ethereum Virtual Machine}-based networks and discusses the possible optimization strategies.
 It presents a concise smart contract for batch sending both native and ERC-20 tokens. 
 It argues about the design decisions that would allow to fit 2--3x more transfers in a single block.
-The paper also discusses how the token developers optimize for gas usage and explains what the upcoming Constantinople hard fork means for token transfers and this algorithm.
+We also discuss how the token developers optimize for gas usage and provide benchmarks against Byzantium and Constantinople virtual machines.
 }
 
 \section{Background}
 Ethereum is a decentralized ledger that allows arbitrary programs to run on its virtual machine.
 These programs are called smart contracts.
 In addition to balance and nonce, contract accounts have an associated EVM code and storage.
-A contract can chain a call to other contracts allowing for complex interactions.\cite{ethereum}
+A contract can chain calls to other contracts allowing for complex interactions.\cite{ethereum}
 
 The base unit of computation is called gas.
 Program execution is instrumented with each opcode having its own gas cost.
@@ -48,7 +48,7 @@ Such contracts keep track of user balances in its storage and make the correspon
 The state-changing operations are are disincentivized with higher gas costs.
 
 A lot of effort is currently directed at scaling Ethereum.
-This paper proposes ready-to-use batching protocol for both native (ETH) and ERC-20 tokens which allows to fit 2--3x more transfers in a single block.
+This paper proposes a ready-to-use batching protocol for both native (ETH) and ERC-20 tokens which allows to fit 2--3x more transfers in a single block.
 It can aid heavy gas consumers like centralized exchanges to significantly cut their costs.
 
 \section{Sending tokens}
@@ -90,7 +90,7 @@ Allowances are stored as a map of addresses to spenders to their remaining allow
 A user invokes \textbf{approve} function with a spender address and a maximum allowance as the arguments.
 Then the spender can transfer the tokens by calling \textbf{transferFrom} passing the user address, a recipient and a value.
 
-This is a common pattern for interacting with the smart contracts.
+This is a common pattern for interacting with smart contracts.
 Instead of calling \textbf{transfer} function, which doesn't notify the recipient, the user calls a contract which chains the call to the token contract's \textbf{transferFrom} and makes the operation on behalf of the user.
 
 \subsection{Estimating gas costs}
@@ -148,7 +148,7 @@ This leaves us with a ballpark estimation of 35,412--50,412 gas:
 This is not far from truth, the widely-used OpenZeppelin\cite{openzeppelin} ERC-20 implementation consumes 36,947--51,947 gas.
 It is possible to fit 154--216 transfers in a block with the current block gas limit of  8,000,000.
 
-The gas cost for \textbf{transferFrom} function is in range of 44,400--59,400, or up to 134--180 transfers per block. The main addition is 5000 gas for updating allowance.
+The gas cost for \textbf{transferFrom} function is in range of 44,400--59,400, or up to 134--180 transfers per block. The biggest addition is 5000 gas for updating allowance.
 
 \section{Batch transfers}
 \subsection{Simple approach}
@@ -204,7 +204,7 @@ This is a 1.58--2.07x improvement over regular transfers and 1.18-1.33x improvem
 \subsection{Visual comparison}
 
 Table \ref{table-byzantium} and Figure \ref{chart-byzantium} present a comparison of two methods with \textit{n} \textbf{transfer} transactions as a baseline.
-The area on the charts shows the bounds of the worst (all recipients had zero token balances) and the best cases (everyone had a non-zero balance).
+The areas on the chart show the bounds of the worst (all recipients had zero token balances) and the best cases (everyone had a non-zero balance).
 
 \begin{table}[h]
 \caption{ERC-20 transfers with gas limit $\rightarrow$ 8,000,000}
@@ -328,7 +328,7 @@ disperseToken       & 284--616  & 12,977--28,092 & 1
 			group size=2 by 1
 		}
 	]
-	\nextgroupplot[ylabel=gas cost, title=simple approach]
+	\nextgroupplot[ylabel=gas cost, title=disperseTokenSimple]
 	\addplot[forget plot, patch, dashed, faceted color=black!50, fill opacity=0]
     coordinates {
         (0, 0)
@@ -347,7 +347,7 @@ disperseToken       & 284--616  & 12,977--28,092 & 1
 		(274, 8000000)
 		(568, 8000000)
     };
-    \nextgroupplot[title=optimized approach]
+    \nextgroupplot[title=disperseToken]
     \addplot[forget plot, patch, dashed, faceted color=black!50, fill opacity=0]
     coordinates {
         (0, 0)
@@ -475,7 +475,7 @@ disperseEther & 230--830  & 9,629--34,701 & 1
 		enlargelimits,
 		legend pos=south east,
 		ylabel=gas cost,
-		title=native token,
+		title=disperseEther,
 	]
     \addplot[black, faceted color=black, fill opacity=.1]
     coordinates {
@@ -508,7 +508,7 @@ The mining and blockchain components are not used.
 This allows to have full control over the underlying state and to read and write directly to the contract storage without the need to apply hundreds of transactions to prepare for each test case.
 
 Storage is accessed by index, in the same order as defined in the Solidity source.
-Mappings are accesses by keccak of their key and index, both of which are encoded as bytes32.
+Mappings are accessed by keccak of their key and index, both of which are encoded as bytes32.
 For example, \textbf{balances} mapping is accesses like this\cite{read-storage}:
 \begin{center}
 	keccak256(bytes32(address) + bytes32(0))	
@@ -522,6 +522,7 @@ keccak256(bytes32(spender) + index)
 
 All tests use binary search to find the maximum number of transfers that can be fitted in a single block.
 The complete test suite \href{https://github.com/banteg/disperse-reseach}{can be found on Github}.
+There are also \href{https://github.com/banteg/disperse-reseach/tree/comparison}{additional tests} against other similar contracts.
 
 \section{Conclusion}
 
@@ -529,7 +530,7 @@ We presented simple and optimal algorithms for batch sending both ERC-20 and nat
 
 Batching results in 1.58--2.07x (1.84--2.87x after Constantinople) improvement in gas usage for tokens and 0.61--2.18x for ether transfers, see Tables \ref{table-byzantium}, \ref{table-constantinople}, \ref{table-native}.
 
-A smart contract implementing Algorithms \ref{simple}, \ref{optimized}, \ref{native} is deployed on Ethereum mainnet and all its testnets as well as multiple other EVM-compatible networks:
+A smart contract implementing Algorithms \ref{simple}, \ref{optimized}, \ref{native} is deployed on Ethereum mainnet and all its testnets as well as multiple other EVM-compatible networks at address:
 
 \begin{center}
 \href{https://etherscan.io/address/0xD152f549545093347A162Dce210e7293f1452150}{0xD152f549545093347A162Dce210e7293f1452150}	
@@ -544,18 +545,18 @@ There is also a client-only frontend interface which interacts with Metamask. It
  
  \bibitem{eip20} \href{https://eips.ethereum.org/EIPS/eip-20}{Fabian Vogelsteller, Vitalik Buterin. {\em EIP 20: ERC-20 Token Standard}, 2015}
 
- \bibitem{openzeppelin} \href{https://github.com/OpenZeppelin/openzeppelin-solidity/blob/v2.0.0/contracts/token/ERC20/ERC20.sol#L151-L164}{OpenZeppelin-Solidity {\em Standard ERC20 token}, 2018}
-
  \bibitem{yellowpaper} \href{http://gavwood.com/paper.pdf}{Gavin Wood. {\em Ethereum: A Secure Decentralised Generalised Transaction Ledger}, Byzantium revision, 2017}
- 
- \bibitem{cremer} \href{https://medium.com/p/d67bf08521ca}{Lukas Cremer. {\em Missing return value bug--At least 130 tokens affected}, 2018}
- 	
- \bibitem{eip1283} \href{https://eips.ethereum.org/EIPS/eip-1283}{Wei Tang. {\em EIP 1283: Net gas metering for SSTORE without dirty maps}, 2018}
- 	
+
+ \bibitem{openzeppelin} \href{https://github.com/OpenZeppelin/openzeppelin-solidity/blob/v2.0.0/contracts/token/ERC20/ERC20.sol#L151-L164}{OpenZeppelin-Solidity {\em Standard ERC20 token}, 2018}
+   	
  \bibitem{multiplexer} \href{https://github.com/DigixGlobal/multiplexer}{DigixGlobal. {\em Multiplexer}, 2017}
- 	
+
  \bibitem{solidity-errors} \href{https://solidity.readthedocs.io/en/latest/control-structures.html#error-handling-assert-require-revert-and-exceptions}{Solidity Documentation. {\em Error handling in Solidity}, 2018}
  	
+% \bibitem{cremer} \href{https://medium.com/p/d67bf08521ca}{Lukas Cremer. {\em Missing return value bug--At least 130 tokens affected}, 2018}
+ 	
+ \bibitem{eip1283} \href{https://eips.ethereum.org/EIPS/eip-1283}{Wei Tang. {\em EIP 1283: Net gas metering for SSTORE without dirty maps}, 2018}
+
  \bibitem{zrx-unlimited} \href{https://github.com/0xProject/0x-monorepo/blob/48ff13e3e22bf9f71bc1a367f86aaa0ae89989ae/packages/contracts/contracts/tokens/ZRXToken/UnlimitedAllowanceToken_v1.sol#L43-L45}{0x Project. {\em Unlimited Allowance Token v1}, 2017}
  
 \bibitem{subtleties} \href{https://github.com/ethereum/wiki/wiki/Subtleties}{Vitalik Buterin. {\em Ethereum Subtleties}, 2015}
