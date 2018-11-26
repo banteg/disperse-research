@@ -553,11 +553,20 @@ Consult this article\cite{read-storage} if you plan to implement test cases for 
 All tests use binary search to find the maximum number of transfers that can be fitted in a single block.
 The complete test suite \href{https://github.com/banteg/disperse-reseach}{can be found on Github}.
 
-\section{Disperse}
+\section{Conclusion}
 
-The smart contract discussed is deployed to Ethereum mainnet and all its testnets, as well as multiple other EVM-compatible networks at the same address: \href{https://etherscan.io/address/0xD152f549545093347A162Dce210e7293f1452150}{0xD152f549545093347A162Dce210e7293f1452150}.
+We presented simple and optimal algorithms for batch sending both ERC-20 and native tokens and benchmarked them.
 
-There is also a client-only frontend interface hosted at \href{https://disperse.app/}{disperse.app} which interacts with Metamask.
+Batching results in 1.58--2.07x (1.84--2.87x after Constantinople) improvement in gas usage for tokens and 0.61--2.18x for ether transfers, see Tables \ref{table-byzantium}, \ref{table-constantinople}, \ref{table-native}.
+
+A smart contract implementing Algorithms \ref{simple}, \ref{optimized}, \ref{native} is deployed on Ethereum mainnet and all its testnets as well as multiple other EVM-compatible networks:
+
+\begin{center}
+\href{https://etherscan.io/address/0xD152f549545093347A162Dce210e7293f1452150}{0xD152f549545093347A162Dce210e7293f1452150}	
+\end{center}
+
+There is also a client-only frontend interface which interacts with Metamask. It is hosted at \href{https://disperse.app/}{disperse.app}.
+
 
 \begin{thebibliography}{1}
 
