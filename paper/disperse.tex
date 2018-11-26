@@ -203,10 +203,22 @@ This is a 1.58--2.07x improvement over regular transfers and 1.18-1.33x improvem
 
 \subsection{Visual comparison}
 
-The chart below presents a comparison of two methods with \textit{n} \textbf{transfer} transactions.
+Figure \ref{chart-byzantium} presents a comparison of two methods with \textit{n} \textbf{transfer} transactions.
 The area shows the bounds of the worst (all recipients had zero token balances) and the best cases (everyone had a non-zero balance).
 
-
+\begin{table}[h]
+\caption{Properties with gas limit $\rightarrow$ 8,000,000}
+\label{table-byzantium}
+\begin{center}
+\begin{tabular}{lrrr}
+Method & Transfers & Gas/transfer & Transactions \\ \midrule
+transfer & 154--216 & 36,947--51,947 & 154--216 \\
+transferFrom & 134--180 & 44,400--59,400 & 134--180 \\
+disperseTokenSimple & 206--337 & 23,694--38,739 & 1 \\
+disperseToken & 242--449 & 17,813--32,928 & 1
+\end{tabular}
+\end{center}
+\end{table}
 
 \begin{figure}[h!]
 \centering{
@@ -247,22 +259,9 @@ The area shows the bounds of the worst (all recipients had zero token balances) 
 	\end{axis}
 \end{tikzpicture}
 }
-\caption{Gas profile of ERC-20 token transfers}
+\caption{Gas profile of Algorithms \ref{simple} and \ref{optimized}}
+\label{chart-byzantium}
 \end{figure}
-
-\begin{table}[h]
-\caption{Properties with gas limit $\rightarrow$ 8,000,000}
-\label{table-byzantium}
-\begin{center}
-\begin{tabular}{lrrr}
-Method & Transfers & Gas/transfer & Transactions \\ \midrule
-transfer & 154--216 & 36,947--51,947 & 154--216 \\
-transferFrom & 134--180 & 44,400--59,400 & 134--180 \\
-disperseTokenSimple & 206--337 & 23,694--38,739 & 1 \\
-disperseToken & 242--449 & 17,813--32,928 & 1
-\end{tabular}
-\end{center}
-\end{table}
 
 
 \section{Further Optimization}
@@ -399,7 +398,6 @@ disperseToken       & 284--616  & 12,977--28,092 & 1
 \end{table}
 
 
-\newpage
 \section{Native Token}
 
 Any value sent along with the transaction immediately becomes available as contract's own balance.
