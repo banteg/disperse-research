@@ -509,7 +509,7 @@ This allows to have full control over the underlying state and to read and write
 
 Storage is accessed by index, in the same order as defined in the Solidity source.
 Mappings are accesses by keccak of their key and index, both of which are encoded as bytes32.
-For example, \textbf{balances} mapping is accesses like this:
+For example, \textbf{balances} mapping is accesses like this\cite{read-storage}:
 \begin{center}
 	keccak256(bytes32(address) + bytes32(0))	
 \end{center}
@@ -519,9 +519,6 @@ Allowances are stored in the \textbf{allowed} mapping which can be accessed by r
 index = keccak256(bytes32(address) + bytes32(1)) \\
 keccak256(bytes32(spender) + index)	
 \end{center}
-
-There is a helper function that simplifies mapping access, but be aware that it doesn't cover all the possible data types.
-Consult this article\cite{read-storage} if you plan to implement test cases for your contracts.
 
 All tests use binary search to find the maximum number of transfers that can be fitted in a single block.
 The complete test suite \href{https://github.com/banteg/disperse-reseach}{can be found on Github}.
@@ -548,8 +545,9 @@ There is also a client-only frontend interface which interacts with Metamask. It
  \bibitem{eip20} \href{https://eips.ethereum.org/EIPS/eip-20}{Fabian Vogelsteller, Vitalik Buterin. {\em EIP 20: ERC-20 Token Standard}, 2015}
 
  \bibitem{openzeppelin} \href{https://github.com/OpenZeppelin/openzeppelin-solidity/blob/v2.0.0/contracts/token/ERC20/ERC20.sol#L151-L164}{OpenZeppelin-Solidity {\em Standard ERC20 token}, 2018}
+
  \bibitem{yellowpaper} \href{http://gavwood.com/paper.pdf}{Gavin Wood. {\em Ethereum: A Secure Decentralised Generalised Transaction Ledger}, Byzantium revision, 2017}
- 	
+ 
  \bibitem{cremer} \href{https://medium.com/p/d67bf08521ca}{Lukas Cremer. {\em Missing return value bug--At least 130 tokens affected}, 2018}
  	
  \bibitem{eip1283} \href{https://eips.ethereum.org/EIPS/eip-1283}{Wei Tang. {\em EIP 1283: Net gas metering for SSTORE without dirty maps}, 2018}
