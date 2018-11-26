@@ -329,7 +329,7 @@ G_{sset}^{20000} + n \cdot G_{snoop}^{200} - R_{sresetclear}^{19800} = 200 \cdot
 
 The new metering rules result in a 25x improvement of the total cost of updating the contract token balance.
 
-Below is a comparison of how this change affects the performance of the proposed contract.
+See Figure \ref{eip1283-plot} for a comparison of how this change affects the performance of the proposed contract.
 
 
 \begin{figure}[h]
@@ -392,6 +392,7 @@ Below is a comparison of how this change affects the performance of the proposed
 	\end{groupplot}
 \end{tikzpicture}
 \caption{EIP-1283 effect on algorithms \ref{simple} and \ref{optimized}}
+\label{eip1283-plot}
 \end{figure}
 
 The overall effect is improvement from 242--449 transfers to 284--616 for optimized approach, which is a 1.17--1.37x better result and a 1.84--2.85x improvement over non-batched transfers.
