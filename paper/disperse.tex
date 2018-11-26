@@ -557,39 +557,4 @@ There is also a client-only frontend interface hosted at \href{https://disperse.
 
 \end{thebibliography}
 
-\appendix
-
-
-\section{Summary Tables}
-
-Here is a summary of the strategies outlined in this paper. All numbers assume a transaction filling the whole block gas limit.
-
-\begin{table}[h]
-	\caption{Gas usage per transfer}
-	\begin{center}
-	\begin{tabular}{l r r}
-		Function & Byzantium & Constantinople \\ \hline
-		transfer & 36,947--51,947 & 36,947--51,947 \\
-		transferFrom & 44,400--59,400 & 44,400--59,400 \\
-		simple & 23,694--38,739 & 14,082--29,145 \\
-		optimized & 17,813--32,928 & 12,977--28,092 \\
-		native & 9,629--34,701 & 9,629--34,701 \\
-	\end{tabular}
-	\end{center}
-\end{table}
-%
-\begin{table}[h]
-	\caption{Maximum transfers per block}
-	\begin{center}
-	\begin{tabular}{l r r}
-		Function & Byzantium & Constantinople \\ \hline
-		transfer & 154--216 & 154--216 \\
-		transferFrom & 134--180 & 134--180 \\
-		simple & 206--337 & 274--568 \\
-		optimized & 242--449 & 284--616 \\	
-		native & 230--830 & 230--830 \\
-	\end{tabular}
-	\end{center}
-\end{table}
-
 \end{document}
