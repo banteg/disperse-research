@@ -8,6 +8,7 @@
 	citecolor=blue,
 	urlcolor=blue,
 ]{hyperref}
+\usepackage{booktabs}
 \usepackage{amsmath}
 \usepackage{xcolor}
 \usepackage[ruled]{algorithm2e}
@@ -48,9 +49,7 @@ The state-changing operations are are disincentivized with higher gas costs.
 
 A lot of effort is currently directed at scaling Ethereum.
 This paper proposes ready-to-use batching protocol for both native (ETH) and ERC-20 tokens which allows to fit 2--3x more transfers in a single block.
-
-It can aid heavy gas consumers like Binance 
-{\color{red} add binance reference}
+It can aid heavy gas consumers like centralized exchanges to significantly cut their costs.
 
 \section{Sending tokens}
 \subsection{Single transfers}
@@ -252,16 +251,17 @@ The area shows the bounds of the worst (all recipients had zero token balances) 
 \end{figure}
 
 \begin{table}[h]
-	\caption{Properties with $\text{gas limit} \rightarrow 8000000$}
-	\begin{center}
-	\begin{tabular}{l r r r}
-		function & transfers/block & gas/transfer & transactions \\ \hline
-		transfer & 154-216 & 36,947--51,947 & 154--216 \\
-		transferFrom & 134--180 & 44,400--59,400 & 134--180 \\
-		simple & 206--337 & 23,694--38,739 & 1 \\
-		optimized & 242--449 & 17,813--32,928 & 1
-	\end{tabular}
-	\end{center}
+\caption{Properties with gas limit $\rightarrow$ 8,000,000}
+\label{my-label}
+\begin{center}
+\begin{tabular}{lrrr}
+Method & Transfers & Gas/transfer & Transactions \\ \midrule
+transfer & 154--216 & 36,947--51,947 & 154--216 \\
+transferFrom & 134--180 & 44,400--59,400 & 134--180 \\
+disperseSimple & 206--337 & 23,694--38,739 & 1 \\
+disperse & 242--449 & 17,813--32,928 & 1
+\end{tabular}
+\end{center}
 \end{table}
 
 \subsection{Caveats}
